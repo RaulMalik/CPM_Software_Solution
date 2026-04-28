@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<!-- Top metrics row -->
+<div class="grid grid-4">
+  <div class="card metric">
+    <div class="label">Current cruise load</div>
+    <div class="value">{{ "%.1f"|format(reading.cruise_load_mw) }}<span class="unit">MW</span></div>
+    <div class="caption">{{ "%.0f"|format(reading.cruise_load_mw / reading.grid_capacity_mw * 100) }}% of grid capacity</div>
+  </div>
+  <div class="card metric">
+    <div class="label">Committed tenant load</div>
+    <div class="value">{{ "%.1f"|format(committed_mw) }}<span class="unit">MW</span></div>
+    <div class="caption">{{ active_leases|length }} active lease{% if active_leases|length != 1 %}s{% endif %}</div>
+  </div>
+  <div class="card metric">
+    <div class="label">Idle capacity (now)</div>
+    <div class="value">{{ "%.1f"|format(reading.idle_mw) }}<span class="unit">MW</span></div>
+    <div class="caption">Leasable: avg {{ "%.1f"|format(forecast.avg_leasable_mw) }} MW over 24h</div>
+  </div>
+  <div class="card metric">
+    <div class="label">BESS state of charge</div>
+    {% if latest_bess %}
+      <div class="value">{{ "%.0f"|format(latest_bess.state_of_charge * 100) }}<span class="unit">%</span></div>
+      <div class="caption">
+        <span class="badge badge-{{ latest_bess.mode.value }}">{{ latest_bess.mode.value }}</span>
+        {{ "%+.2f"|format(latest_bess.power_mw) }} MW
+      </div>
+    {% else %}
+      <div class="value">—</div>
+      <div class="caption">No BESS state recorded yet</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="section-spacer"></div>
+
+<!-- Current grid state bar -->
+<div class="card">
+  <h2>Grid utilisation right now</h2>
+  {% set cruise_pct = (reading.cruise_load_mw / reading.grid_capacity_mw * 100) %}
+  {% set tenant_pct = (reading.tenant_load_mw / reading.grid_capacity_mw * 100) %}
+  {% set idle_pct = (reading.idle_mw / reading.grid_capacity_mw * 100) %}
+  <div class="capacity-bar">
+    <div class="cruise" style="width: {{ cruise_pct }}%;"></div>
+    <div class="tenant" style="width: {{ tenant_pct }}%;"></div>
+    <div class="idle" style="width: {{ idle_pct }}%;"></div>
+  </div>
+  <div style="display: flex; gap: 1.5rem; margin-top: 0.6rem; font-size: 0.82rem;">
+    <span><span style="display:inline-block;width:10px;height:10px;background:var(--cmp-blue);border-radius:2px;"></span> Cruise {{ "%.1f"|format(reading.cruise_load_mw) }} MW</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:var(--cmp-orange);border-radius:2px;"></span> Tenant {{ "%.1f"|format(reading.tenant_load_mw) }} MW</span>
+    <span><span style="display:inline-block;width:10px;height:10px;background:var(--cmp-light);border-radius:2px;border:1px solid var(--border);"></span> Idle {{ "%.1f"|format(reading.idle_mw) }} MW</span>
+    <span style="margin-left: auto; color: var(--muted);">Capacity: {{ reading.grid_capacity_mw }} MW</span>
+  </div>
+</div>
+
+<div class="section-spacer"></div>
+
+<!-- 24-hour forecast strip -->
+<div class="card">
+  <h2>24-hour leasable capacity forecast</h2>
+  <div class="forecast-grid">
+    {% for p in forecast.points[:24] %}
+      {% set ratio = p.leasable_mw / settings.grid_capacity_mw %}
+      {% if ratio > 0.8 %}
+        {% set colour = "#5FA55A" %}
+      {% elif ratio > 0.5 %}
+        {% set colour = "#3A7EBF" %}
+      {% elif ratio > 0.2 %}
+        {% set colour = "#E8863A" %}
+      {% else %}
+        {% set colour = "#C0392B" %}
+      {% endif %}
+      <div class="hour" style="background: {{ colour }};" title="{{ p.target_time.strftime('%Y-%m-%d %H:%M') }}: {{ '%.1f'|format(p.leasable_mw) }} MW leasable">
+        {{ "%.0f"|format(p.leasable_mw) }}
+      </div>
+    {% endfor %}
+  </div>
+  <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.7rem; color: var(--muted);">
+    <span>{{ forecast.points[0].target_time.strftime('%H:%M') if forecast.points else '' }}</span>
+    <span>Peak {{ "%.1f"|format(forecast.peak_leasable_mw) }} MW · Avg {{ "%.1f"|format(forecast.avg_leasable_mw) }} MW</span>
+    <span>{{ forecast.points[23].target_time.strftime('%H:%M') if forecast.points|length > 23 else '' }}</span>
+  </div>
+</div>
+
+<div class="section-spacer"></div>
+
+<!-- Two-column: active leases + shed events -->
+<div class="grid grid-2">
+  <div class="card">
+    <h2>Active leases</h2>
+    {% if active_leases %}
+    <table>
+      <thead>
+        <tr>
+          <th>Tenant</th>
+          <th>Asset</th>
+          <th class="num">MW</th>
+          <th>Status</th>
+          <th>Until</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lease in active_leases %}
+        <tr>
+          <td>{{ lease.tenant.name if lease.tenant else lease.tenant_id }}</td>
+          <td>{{ lease.asset_identifier }} <span style="color:var(--muted);font-size:0.75rem;">({{ lease.asset_type.value }})</span></td>
+          <td class="num">{{ "%.2f"|format(lease.reserved_mw) }}</td>
+          <td><span class="badge badge-{{ lease.status.value }}">{{ lease.status.value }}</span></td>
+          <td>{{ lease.end_time.strftime('%H:%M') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color: var(--muted); padding: 1rem 0;">No active leases. Idle capacity is fully available.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Recent shed events (24h)</h2>
+    {% if shed_events %}
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Trigger</th>
+          <th class="num">MW shed</th>
+          <th>Lease</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ev in shed_events[:10] %}
+        <tr>
+          <td>{{ ev.triggered_at.strftime('%H:%M:%S') }}</td>
+          <td>{{ ev.trigger.value }}</td>
+          <td class="num">{{ "%.2f"|format(ev.mw_shed) }}</td>
+          <td>#{{ ev.affected_lease_id or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color: var(--muted); padding: 1rem 0;">No shed events in the last 24 hours.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="section-spacer"></div>
+
+<!-- Config reference -->
+<div class="card" style="background: #F8F9FA;">
+  <h2>System configuration</h2>
+  <div class="grid grid-4" style="font-size: 0.85rem;">
+    <div><span style="color: var(--muted);">Grid capacity:</span><br><strong>{{ settings.grid_capacity_mw }} MW</strong></div>
+    <div><span style="color: var(--muted);">BESS size:</span><br><strong>{{ settings.bess_capacity_mwh }} MWh / {{ settings.bess_power_mw }} MW</strong></div>
+    <div><span style="color: var(--muted);">Forecast horizon:</span><br><strong>{{ settings.forecast_horizon_hours }} h</strong></div>
+    <div><span style="color: var(--muted);">Shed response target:</span><br><strong>&lt; {{ settings.shed_response_minutes }} min</strong></div>
+  </div>
+</div>
+
+{% endblock %}

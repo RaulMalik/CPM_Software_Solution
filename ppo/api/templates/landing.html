@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block content %}
+<div class="card" style="text-align: center; padding: 3rem 2rem;">
+  <h2 style="font-size: 1.5rem;">Port Power Orchestrator</h2>
+  <p style="color: var(--muted); max-width: 600px; margin: 1rem auto;">
+    Intelligent energy management platform for Copenhagen Malmö Port's
+    shore power infrastructure. Under the infrastructure leasing model,
+    CMP leases idle grid capacity to licensed energy providers while
+    guaranteeing cruise-ship priority via automated load shedding.
+  </p>
+  <div style="margin-top: 2rem;">
+    <a href="/dashboard" style="background: var(--cmp-blue); color: white; padding: 0.7rem 1.4rem; text-decoration: none; border-radius: 6px; display: inline-block;">
+      Open operator dashboard →
+    </a>
+  </div>
+</div>
+{% endblock %}

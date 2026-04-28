@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}PPO{% endblock %} · Port Power Orchestrator</title>
+  <style>
+    :root {
+      --cmp-dark: #1B2A4A;
+      --cmp-blue: #3A7EBF;
+      --cmp-green: #5FA55A;
+      --cmp-teal: #1ABC9C;
+      --cmp-orange: #E8863A;
+      --cmp-red: #C0392B;
+      --cmp-gray: #95A5A6;
+      --cmp-light: #ECF0F1;
+      --bg: #FAFBFC;
+      --border: #D7DDE3;
+      --text: #2C3E50;
+      --muted: #7F8C8D;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    header.topbar {
+      background: var(--cmp-dark);
+      color: white;
+      padding: 0.9rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    header.topbar h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    header.topbar .meta {
+      font-size: 0.85rem;
+      opacity: 0.7;
+    }
+    nav.tabs {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      gap: 1.2rem;
+    }
+    nav.tabs a {
+      padding: 0.8rem 0.3rem;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      border-bottom: 2px solid transparent;
+    }
+    nav.tabs a.active,
+    nav.tabs a:hover {
+      color: var(--cmp-dark);
+      border-bottom-color: var(--cmp-blue);
+    }
+    main.container {
+      max-width: 1280px;
+      margin: 2rem auto;
+      padding: 0 2rem;
+    }
+    h2 {
+      font-size: 1.15rem;
+      margin: 0 0 0.8rem 0;
+      color: var(--cmp-dark);
+      font-weight: 500;
+    }
+    .grid {
+      display: grid;
+      gap: 1.2rem;
+    }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 900px) {
+      .grid-3, .grid-4, .grid-2 { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.2rem;
+    }
+    .metric {
+      display: flex;
+      flex-direction: column;
+    }
+    .metric .label {
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+    .metric .value {
+      font-size: 1.7rem;
+      font-weight: 500;
+      color: var(--cmp-dark);
+      line-height: 1;
+    }
+    .metric .unit {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-left: 0.3rem;
+      font-weight: 400;
+    }
+    .metric .caption {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 0.4rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.55rem 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .badge-active { background: #E8F5E9; color: #2E7D32; }
+    .badge-pending { background: #FFF3E0; color: #E65100; }
+    .badge-curtailed { background: #FFEBEE; color: #C62828; }
+    .badge-completed { background: #ECEFF1; color: #455A64; }
+    .badge-cancelled { background: #F5F5F5; color: #757575; }
+    .badge-charging { background: #E3F2FD; color: #1565C0; }
+    .badge-discharging { background: #FFF8E1; color: #F57C00; }
+    .badge-emergency_discharge { background: #FFEBEE; color: #B71C1C; }
+    .badge-idle { background: #ECEFF1; color: #455A64; }
+    .badge-reserved { background: #F3E5F5; color: #6A1B9A; }
+
+    .capacity-bar {
+      height: 20px;
+      background: #F0F3F7;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+    }
+    .capacity-bar > div { height: 100%; transition: width 0.3s; }
+    .capacity-bar .cruise { background: var(--cmp-blue); }
+    .capacity-bar .tenant { background: var(--cmp-orange); }
+    .capacity-bar .idle { background: var(--cmp-light); }
+
+    .forecast-grid {
+      display: grid;
+      grid-template-columns: repeat(24, 1fr);
+      gap: 2px;
+      margin-top: 0.4rem;
+    }
+    .forecast-grid .hour {
+      height: 32px;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      color: white;
+      font-weight: 500;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .section-spacer { height: 1.6rem; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <h1>⚡ Port Power Orchestrator</h1>
+    <div class="meta">Copenhagen Malmö Port · v0.3</div>
+  </header>
+
+  <nav class="tabs">
+    <a href="/dashboard" class="{% if request.url.path == '/dashboard' %}active{% endif %}">Overview</a>
+    <a href="/dashboard/tenants" class="{% if '/tenants' in request.url.path %}active{% endif %}">Tenants &amp; leases</a>
+    <a href="/docs">API docs</a>
+  </nav>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    PPO · DTU Innovation Pilot 62999 · Group 40 · Spring 2026
+  </footer>
+</body>
+</html>

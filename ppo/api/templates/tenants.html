@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Tenants{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h2>Energy providers (tenants)</h2>
+  {% if tenants %}
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>License</th>
+        <th>Contact</th>
+        <th>Status</th>
+        <th class="num">Active leases</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tenants %}
+      {% set leases = leases_by_tenant[t.id] %}
+      {% set active = leases | selectattr('status.value', 'in', ['active','pending','curtailed']) | list %}
+      <tr>
+        <td><strong>{{ t.name }}</strong></td>
+        <td style="font-family:monospace;font-size:0.82rem;">{{ t.license_number }}</td>
+        <td>{{ t.contact_email }}</td>
+        <td>
+          {% if t.active %}<span class="badge badge-active">active</span>{% else %}<span class="badge badge-cancelled">inactive</span>{% endif %}
+        </td>
+        <td class="num">{{ active|length }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p style="color: var(--muted);">No tenants yet. Run <code>python -m scripts.seed_db</code> to populate demo data.</p>
+  {% endif %}
+</div>
+
+<div class="section-spacer"></div>
+
+{% for t in tenants %}
+  {% set leases = leases_by_tenant[t.id] %}
+  {% if leases %}
+  <div class="card" style="margin-bottom:1.2rem;">
+    <h2>{{ t.name }} — lease history</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Asset</th>
+          <th class="num">MW</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Status</th>
+          <th class="num">Price (DKK)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in leases %}
+        <tr>
+          <td>#{{ l.id }}</td>
+          <td>{{ l.asset_identifier }} <span style="color:var(--muted);font-size:0.75rem;">({{ l.asset_type.value }})</span></td>
+          <td class="num">{{ "%.2f"|format(l.reserved_mw) }}</td>
+          <td>{{ l.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ l.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td><span class="badge badge-{{ l.status.value }}">{{ l.status.value }}</span></td>
+          <td class="num">{{ "{:,.0f}".format(l.price_dkk) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+{% endfor %}
+
+{% endblock %}
